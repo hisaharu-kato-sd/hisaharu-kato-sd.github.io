@@ -1,0 +1,458 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { ColorScheme } from './ui/common';
+
+export const useMoodMeterSocket = (initialSelections = []) => {
+  const [connectedClients, setConnectedClients] = useState(0);
+  const [remoteSelections, setRemoteSelections] = useState([]);
+  const [connectedUsers, setConnectedUsers] = useState({});
+  const [myUserId, setMyUserId] = useState('');
+  const [remoteUsers, setRemoteUsers] = useState({});
+  const wsRef = useRef(null);
+  const initializedRef = useRef(false); // 初期化フラグ
+
+  // 自分の選択を追跡するための状態 - セッションストレージから初期値を取得
+  const [mySelections, setMySelections] = useState(() => {
+    try {
+      const storedData = sessionStorage.getItem('moodMeterSelections');
+      const parsedData = storedData ? JSON.parse(storedData) : [];
+      console.log('セッションストレージから選択データを復元:', parsedData);
+      return parsedData;
+    } catch (e) {
+      console.error('選択データの復元中にエラー:', e);
+      return [];
+    }
+  });
+
+  // 初期化処理を実行
+  useEffect(() => {
+    if (initializedRef.current) return; // 既に初期化済みならスキップ
+    initializedRef.current = true;
+
+    // 初期選択データがあれば、それを使用する
+    if (initialSelections && initialSelections.length > 0) {
+      console.log('親コンポーネントから初期選択を設定:', initialSelections);
+      setMySelections(initialSelections);
+    }
+  }, [initialSelections]);
+
+  // WebSocket接続処理とユーザー初期化
+  useEffect(() => {
+    // セッションストレージからユーザーIDを取得するか、新しく生成する
+    const getOrCreateUserId = () => {
+      const storedUserId = sessionStorage.getItem('moodMeterUserId');
+      const storedColorIndex = sessionStorage.getItem('moodMeterColorIndex');
+
+      if (storedUserId) {
+        console.log('セッションストレージからユーザー情報を復元:', storedUserId, storedColorIndex);
+        return {
+          userId: storedUserId,
+          colorIndex: parseInt(storedColorIndex || '0', 10)
+        };
+      }
+
+      const newUserId = Math.floor(Math.random() * 10000000).toString();
+      const newColorIndex = parseInt(newUserId, 10) % ColorScheme.length;
+
+      sessionStorage.setItem('moodMeterUserId', newUserId);
+      sessionStorage.setItem('moodMeterColorIndex', newColorIndex.toString());
+
+      console.log('新しいユーザー情報を生成:', newUserId, newColorIndex);
+      return {
+        userId: newUserId,
+        colorIndex: newColorIndex
+      };
+    };
+
+    const { userId, colorIndex } = getOrCreateUserId();
+    setMyUserId(userId);
+
+    // WebSocket接続の初期化
+    const wsUrl = 'wss://s14296.blr1.piesocket.com/v3/1?api_key=BVM9sVqGpPfg0xNvwIvYJTNEYoIHOUsLAxLwmCu0&notify_self=1';
+    wsRef.current = new WebSocket(wsUrl);
+
+    // WebSocket接続時の処理
+    wsRef.current.onopen = () => {
+      console.log('WebSocket接続が確立されました');
+
+      // ユーザー情報を送信
+      const userInfo = {
+        type: 'user_connect',
+        userId: userId,
+        colorIndex: colorIndex,
+        timestamp: new Date().toISOString()
+      };
+
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify(userInfo));
+      }
+
+      // クライアント数の送信を要求
+      requestClientCount();
+      setConnectedClients(prev => Math.max(prev, 1));
+
+      // リロード時、セッションストレージから復元した選択データがある場合は送信
+      const currentSelections = mySelections;
+      if (currentSelections && currentSelections.length > 0) {
+        console.log('セッションから復元した選択を送信:', currentSelections);
+
+        // 状態を再設定してUIに反映
+        setMySelections(currentSelections);
+
+        // 少し遅延させて選択情報を送信
+        const timerId = setTimeout(() => {
+          try {
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+              const data = {
+                type: 'emotion_update',
+                selections: currentSelections,
+                userId: userId,
+                colorIndex: colorIndex,
+                timestamp: new Date().toISOString()
+              };
+              wsRef.current.send(JSON.stringify(data));
+            }
+          } catch (error) {
+            console.error('選択情報送信エラー:', error);
+          }
+        }, 500);
+
+        return () => clearTimeout(timerId);
+      }
+
+      // 他のユーザーの選択情報をリクエスト
+      const requestTimerId = setTimeout(() => {
+        try {
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            requestAllSelections();
+          }
+        } catch (error) {
+          console.error('選択情報リクエストエラー:', error);
+        }
+      }, 1000);
+
+      return () => clearTimeout(requestTimerId);
+    };
+
+    // メッセージ受信時の処理
+    wsRef.current.onmessage = handleWebSocketMessage;
+
+    wsRef.current.onerror = (error) => {
+      console.error('WebSocket接続エラー:', error);
+    };
+
+    wsRef.current.onclose = () => {
+      console.log('WebSocket接続が閉じられました');
+    };
+
+    // 30秒ごとにクライアント数の更新を要求
+    const intervalId = setInterval(requestClientCount, 30000);
+
+    // クリーンアップ
+    return () => {
+      clearInterval(intervalId);
+      try {
+        if (wsRef.current) {
+          if (wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.close();
+          }
+          wsRef.current = null; // 参照をクリア
+        }
+      } catch (error) {
+        console.error('WebSocketクリーンアップエラー:', error);
+      }
+    };
+  }, []);
+
+  // 初期選択データがあれば適用する処理を追加
+  useEffect(() => {
+    if (initialSelections && initialSelections.length > 0 && mySelections.length === 0) {
+      console.log('親コンポーネントから初期選択を設定:', initialSelections);
+      setMySelections(initialSelections);
+      try {
+        sessionStorage.setItem('moodMeterSelections', JSON.stringify(initialSelections));
+      } catch (e) {
+        console.error('選択情報の保存エラー:', e);
+      }
+    }
+  }, [initialSelections]);
+
+  // mySelectionsの変更を監視し、セッションストレージに保存
+  useEffect(() => {
+    if (mySelections.length > 0) {
+      console.log('選択情報をセッションストレージに保存:', mySelections);
+      sessionStorage.setItem('moodMeterSelections', JSON.stringify(mySelections));
+    }
+  }, [mySelections]);
+
+  // 全ユーザーの選択情報をリクエストする関数を追加
+  const requestAllSelections = () => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      try {
+        const request = {
+          type: 'request_all_selections',
+          userId: myUserId,
+          timestamp: new Date().toISOString()
+        };
+        console.log('全ユーザーの選択情報をリクエスト');
+        wsRef.current.send(JSON.stringify(request));
+      } catch (error) {
+        console.error('選択情報リクエスト送信エラー:', error);
+      }
+    }
+  };
+
+  // WebSocketメッセージハンドラ
+  const handleWebSocketMessage = (event) => {
+    console.log('WebSocketからメッセージ受信:', event.data);
+
+    try {
+      const data = JSON.parse(event.data);
+
+      switch (data.type) {
+        case 'client_count':
+          console.log('クライアント数を更新:', data.count);
+          setConnectedClients(Number(data.count) || 1);
+          break;
+
+        case 'user_connect':
+          setConnectedUsers(prevConnectedUsers => ({
+            ...prevConnectedUsers,
+            [data.userId]: {
+              name: ColorScheme[data.colorIndex % ColorScheme.length].name,
+              colorIndex: data.colorIndex
+            }
+          }));
+          break;
+
+        case 'user_disconnect':
+          setConnectedUsers(prev => {
+            const newUsers = {...prev};
+            delete newUsers[data.userId];
+            return newUsers;
+          });
+
+          setRemoteUsers(prev => {
+            const newRemoteUsers = {...prev};
+            delete newRemoteUsers[data.userId];
+            return newRemoteUsers;
+          });
+          break;
+
+        case 'emotion_update':
+          if (data.userId === myUserId) {
+            console.log('自分の選択をスキップ:', data.selections);
+            return;
+          }
+
+          if (data.selections && data.userId && Array.isArray(data.selections)) {
+            const colorIndex = data.colorIndex || 0;
+
+            setRemoteUsers(prevRemoteUsers => {
+              const updatedRemoteUsers = {
+                ...prevRemoteUsers,
+                [data.userId]: {
+                  selections: data.selections,
+                  colorIndex: colorIndex,
+                  name: ColorScheme[colorIndex % ColorScheme.length].name,
+                  timestamp: data.timestamp
+                }
+              };
+
+              const allSelections = [];
+              Object.entries(updatedRemoteUsers).forEach(([userId, userData]) => {
+                if (userId !== myUserId && Array.isArray(userData.selections)) {
+                  userData.selections.forEach(selection => {
+                    allSelections.push({
+                      ...selection,
+                      userId,
+                      colorIndex: userData.colorIndex
+                    });
+                  });
+                }
+              });
+
+              setRemoteSelections(allSelections);
+              return updatedRemoteUsers;
+            });
+          }
+          break;
+
+        case 'emotion_clear':
+          if (data.userId && data.userId !== myUserId) {
+            setRemoteUsers(prev => {
+              const newRemoteUsers = {...prev};
+              if (newRemoteUsers[data.userId]) {
+                newRemoteUsers[data.userId].selections = [];
+              }
+              return newRemoteUsers;
+            });
+
+            setRemoteSelections(prev =>
+              prev.filter(selection => selection.userId !== data.userId)
+            );
+          }
+          break;
+
+        case 'request_all_selections':
+          // 他のユーザーから選択情報のリクエストがあった場合、自分の選択情報を送信
+          if (data.userId !== myUserId && mySelections.length > 0) {
+            sendEmotionUpdateToUser(mySelections, data.userId);
+          }
+          break;
+
+        case 'emotion_update_response':
+          // 特定のユーザー向けの選択情報応答を処理
+          if (data.targetUserId === myUserId && data.userId !== myUserId) {
+            if (data.selections && data.userId && Array.isArray(data.selections)) {
+              const colorIndex = data.colorIndex || 0;
+
+              setRemoteUsers(prevRemoteUsers => {
+                const updatedRemoteUsers = {
+                  ...prevRemoteUsers,
+                  [data.userId]: {
+                    selections: data.selections,
+                    colorIndex: colorIndex,
+                    name: ColorScheme[colorIndex % ColorScheme.length].name,
+                    timestamp: data.timestamp
+                  }
+                };
+
+                const allSelections = [];
+                Object.entries(updatedRemoteUsers).forEach(([userId, userData]) => {
+                  if (userId !== myUserId && Array.isArray(userData.selections)) {
+                    userData.selections.forEach(selection => {
+                      allSelections.push({
+                        ...selection,
+                        userId,
+                        colorIndex: userData.colorIndex
+                      });
+                    });
+                  }
+                });
+
+                setRemoteSelections(allSelections);
+                return updatedRemoteUsers;
+              });
+            }
+          }
+          break;
+      }
+    } catch (err) {
+      console.error('JSONパースエラー:', err);
+    }
+  };
+
+  // クライアント数の送信をサーバーに要求する関数
+  const requestClientCount = () => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      const request = {
+        type: 'request_client_count',
+        timestamp: new Date().toISOString()
+      };
+      wsRef.current.send(JSON.stringify(request));
+    }
+  };
+
+  // 特定のユーザーに選択情報を送信する関数
+  const sendEmotionUpdateToUser = (selections, targetUserId) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      const data = {
+        type: 'emotion_update_response',
+        selections: selections,
+        userId: myUserId,
+        targetUserId: targetUserId,
+        colorIndex: parseInt(myUserId, 10) % ColorScheme.length,
+        timestamp: new Date().toISOString()
+      };
+      wsRef.current.send(JSON.stringify(data));
+    }
+  };
+
+  // 感情データを送信する関数をmemoize
+  const sendEmotionUpdate = useCallback((selections) => {
+    console.log('感情データを送信:', selections);
+
+    // 状態を更新
+    setMySelections(selections);
+
+    // セッションストレージに選択情報を保存
+    try {
+      sessionStorage.setItem('moodMeterSelections', JSON.stringify(selections));
+    } catch (e) {
+      console.error('選択情報の保存エラー:', e);
+    }
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      try {
+        const data = {
+          type: 'emotion_update',
+          selections: selections,
+          userId: myUserId,
+          colorIndex: parseInt(myUserId, 10) % ColorScheme.length,
+          timestamp: new Date().toISOString()
+        };
+        wsRef.current.send(JSON.stringify(data));
+      } catch (error) {
+        console.error('WebSocket送信エラー:', error);
+      }
+    } else {
+      console.warn('WebSocket接続が確立されていません');
+    }
+  }, [myUserId]);
+
+  // 選択クリア通知を送信する関数をmemoize
+  const sendEmotionClear = useCallback(() => {
+    console.log('感情データをクリア');
+
+    // 状態をクリア
+    setMySelections([]);
+
+    // セッションストレージから選択情報をクリア
+    sessionStorage.removeItem('moodMeterSelections');
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      try {
+        const data = {
+          type: 'emotion_clear',
+          userId: myUserId,
+          timestamp: new Date().toISOString()
+        };
+        wsRef.current.send(JSON.stringify(data));
+      } catch (error) {
+        console.error('WebSocket送信エラー:', error);
+      }
+    }
+  }, [myUserId]);
+
+  // ページ離脱時に切断通知を送信
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        const data = {
+          type: 'user_disconnect',
+          userId: myUserId,
+          timestamp: new Date().toISOString()
+        };
+        wsRef.current.send(JSON.stringify(data));
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      handleBeforeUnload();
+    };
+  }, [myUserId]);
+
+  return {
+    myUserId,
+    connectedClients,
+    connectedUsers,
+    remoteUsers,
+    remoteSelections,
+    mySelections,
+    sendEmotionUpdate,
+    sendEmotionClear
+  };
+};
