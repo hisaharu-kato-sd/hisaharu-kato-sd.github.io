@@ -1,0 +1,44 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Arial', sans-serif;
+  background-color: #f9fafb;
+  color: #374151;
+}
+
+h2 {
+  color: #1f2937;
+}
+
+button {
+  cursor: pointer;
+}
+
+.alert {
+  padding: 1rem;
+  border-radius: 0.5rem;
+}
+
+.bg-red-200 {
+  background-color: #fee2e2;
+}
+
+.bg-yellow-200 {
+  background-color: #fefcbf;
+}
+
+.bg-blue-200 {
+  background-color: #bfdbfe;
+}
+
+.bg-green-200 {
+  background-color: #bbf7d0;
+}
+
+.text-gray-800 {
+  color: #1f2937;
+}
+
+.text-gray-600 {
+  color: #4b5563;
+}
