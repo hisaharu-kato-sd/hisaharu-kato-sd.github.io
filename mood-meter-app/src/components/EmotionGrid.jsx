@@ -45,7 +45,7 @@ const EmotionGrid = ({ selectedEmotions, remoteSelections, myUserId, onEmotionSe
         const backgroundClass = getEmotionBackground(rowIdx, colIdx);
 
         // 基本セルスタイル
-        let cellStyle = `w-full h-full ${backgroundClass} cursor-pointer flex items-center justify-center text-xs font-semibold relative text-gray-800 border-2 border-white`;
+        let cellStyle = `w-full h-full ${backgroundClass} cursor-pointer flex items-center justify-center text-xs font-semibold relative text-gray-800 border-2 border-white text-center`;
 
         // 選択された場合のスタイル（オプション）
         if (isSelected) {
