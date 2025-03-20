@@ -15,18 +15,18 @@ const Emotions = [
   ];
 
 const ColorScheme = [
-    { name: 'ゼウス', color: 'bg-red-600', borderColor: 'border-red-600', textColor: 'text-red-600' },
-    { name: 'ヘラ', color: 'bg-orange-600', borderColor: 'border-orange-600', textColor: 'text-orange-600' },
-    { name: 'ポセイドン', color: 'bg-yellow-500', borderColor: 'border-yellow-500', textColor: 'text-yellow-600' },
-    { name: 'デメテル', color: 'bg-green-600', borderColor: 'border-green-600', textColor: 'text-green-600' },
-    { name: 'アテナ', color: 'bg-blue-600', borderColor: 'border-blue-600', textColor: 'text-blue-600' },
-    { name: 'アポロン', color: 'bg-purple-600', borderColor: 'border-purple-600', textColor: 'text-purple-600' },
-    { name: 'アルテミス', color: 'bg-pink-600', borderColor: 'border-pink-600', textColor: 'text-pink-600' },
-    { name: 'アレス', color: 'bg-rose-600', borderColor: 'border-rose-600', textColor: 'text-rose-600' },
-    { name: 'アフロディーテ', color: 'bg-sky-600', borderColor: 'border-sky-600', textColor: 'text-sky-600' },
-    { name: 'ヘーパイストス', color: 'bg-emerald-600', borderColor: 'border-emerald-600', textColor: 'text-emerald-600' },
-    { name: 'ヘルメス', color: 'bg-lime-600', borderColor: 'border-lime-600', textColor: 'text-lime-600' },
-    { name: 'ディオニュソス', color: 'bg-stone-600', borderColor: 'border-stone-600', textColor: 'text-stone-600' },
+    { color: 'bg-red-600', borderColor: 'border-red-600', textColor: 'text-red-600' },
+    { color: 'bg-orange-600', borderColor: 'border-orange-600', textColor: 'text-orange-600' },
+    { color: 'bg-yellow-500', borderColor: 'border-yellow-500', textColor: 'text-yellow-600' },
+    { color: 'bg-green-600', borderColor: 'border-green-600', textColor: 'text-green-600' },
+    { color: 'bg-blue-600', borderColor: 'border-blue-600', textColor: 'text-blue-600' },
+    { color: 'bg-purple-600', borderColor: 'border-purple-600', textColor: 'text-purple-600' },
+    { color: 'bg-pink-600', borderColor: 'border-pink-600', textColor: 'text-pink-600' },
+    { color: 'bg-rose-600', borderColor: 'border-rose-600', textColor: 'text-rose-600' },
+    { color: 'bg-sky-600', borderColor: 'border-sky-600', textColor: 'text-sky-600' },
+    { color: 'bg-emerald-600', borderColor: 'border-emerald-600', textColor: 'text-emerald-600' },
+    { color: 'bg-lime-600', borderColor: 'border-lime-600', textColor: 'text-lime-600' },
+    { color: 'bg-stone-600', borderColor: 'border-stone-600', textColor: 'text-stone-600' },
 ];
 
 // ヘルパー関数の実装（コンポーネント外部に記述）

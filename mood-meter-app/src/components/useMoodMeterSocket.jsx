@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ColorScheme } from './ui/common';
 
-export const useMoodMeterSocket = (initialSelections = []) => {
+export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト') => {
   const [connectedClients, setConnectedClients] = useState(0);
   const [remoteSelections, setRemoteSelections] = useState([]);
   const [connectedUsers, setConnectedUsers] = useState({});
@@ -218,7 +218,7 @@ export const useMoodMeterSocket = (initialSelections = []) => {
           setConnectedUsers(prevConnectedUsers => ({
             ...prevConnectedUsers,
             [data.userId]: {
-              name: ColorScheme[data.colorIndex % ColorScheme.length].name,
+              name: data.userId === myUserId ? userName : `ユーザー${data.userId.substring(0, 4)}`,
               colorIndex: data.colorIndex
             }
           }));
@@ -253,7 +253,7 @@ export const useMoodMeterSocket = (initialSelections = []) => {
                 [data.userId]: {
                   selections: data.selections,
                   colorIndex: colorIndex,
-                  name: ColorScheme[colorIndex % ColorScheme.length].name,
+                  name: data.userId === myUserId ? userName : `ユーザー${data.userId.substring(0, 4)}`,
                   timestamp: data.timestamp
                 }
               };
@@ -312,7 +312,7 @@ export const useMoodMeterSocket = (initialSelections = []) => {
                   [data.userId]: {
                     selections: data.selections,
                     colorIndex: colorIndex,
-                    name: ColorScheme[colorIndex % ColorScheme.length].name,
+                    name: data.userId === myUserId ? userName : `ユーザー${data.userId.substring(0, 4)}`,
                     timestamp: data.timestamp
                   }
                 };
