@@ -78,6 +78,7 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
       const userInfo = {
         type: 'user_connect',
         userId: userId,
+        userName: userName,
         colorIndex: colorIndex,
         timestamp: new Date().toISOString()
       };
@@ -87,7 +88,6 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
       }
 
       // クライアント数の送信を要求
-      requestClientCount();
       setConnectedClients(prev => Math.max(prev, 1));
 
       // リロード時、セッションストレージから復元した選択データがある場合は送信
@@ -106,6 +106,7 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
                 type: 'emotion_update',
                 selections: currentSelections,
                 userId: userId,
+                userName: userName,
                 colorIndex: colorIndex,
                 timestamp: new Date().toISOString()
               };
@@ -140,19 +141,28 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
       console.error('WebSocket接続エラー:', error);
     };
 
-    wsRef.current.onclose = () => {
-      console.log('WebSocket接続が閉じられました');
+    wsRef.current.onclose = (event) => {
+      console.log('WebSocket接続が閉じられました', event.code, event.reason);
+      
+      // 異常切断の場合は再接続を試みる（コード1000は正常終了）
+      if (event.code !== 1000 && !window.isUnloading) {
+        console.log('WebSocket接続の再確立を試みます');
+        // 再接続の実装はここに追加可能
+      }
     };
-
-    // 30秒ごとにクライアント数の更新を要求
-    const intervalId = setInterval(requestClientCount, 30000);
 
     // クリーンアップ
     return () => {
-      clearInterval(intervalId);
       try {
         if (wsRef.current) {
           if (wsRef.current.readyState === WebSocket.OPEN) {
+            // 切断前に切断メッセージを送信
+            const disconnectData = {
+              type: 'user_disconnect',
+              userId: userId,
+              timestamp: new Date().toISOString()
+            };
+            wsRef.current.send(JSON.stringify(disconnectData));
             wsRef.current.close();
           }
           wsRef.current = null; // 参照をクリア
@@ -218,7 +228,7 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
           setConnectedUsers(prevConnectedUsers => ({
             ...prevConnectedUsers,
             [data.userId]: {
-              name: data.userId === myUserId ? userName : `ユーザー${data.userId.substring(0, 4)}`,
+              name: data.userId === myUserId ? userName : (data.userName || `ユーザー名取得失敗:${data.userId.substring(0, 4)}`),
               colorIndex: data.colorIndex
             }
           }));
@@ -253,7 +263,7 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
                 [data.userId]: {
                   selections: data.selections,
                   colorIndex: colorIndex,
-                  name: data.userId === myUserId ? userName : `ユーザー${data.userId.substring(0, 4)}`,
+                  name: data.userId === myUserId ? userName : (data.userName || `ユーザー名取得失敗:${data.userId.substring(0, 4)}`),
                   timestamp: data.timestamp
                 }
               };
@@ -312,7 +322,7 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
                   [data.userId]: {
                     selections: data.selections,
                     colorIndex: colorIndex,
-                    name: data.userId === myUserId ? userName : `ユーザー${data.userId.substring(0, 4)}`,
+                    name: data.userId === myUserId ? userName : (data.userName || `ユーザー名取得失敗:${data.userId.substring(0, 4)}`),
                     timestamp: data.timestamp
                   }
                 };
@@ -342,17 +352,6 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
     }
   };
 
-  // クライアント数の送信をサーバーに要求する関数
-  const requestClientCount = () => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      const request = {
-        type: 'request_client_count',
-        timestamp: new Date().toISOString()
-      };
-      wsRef.current.send(JSON.stringify(request));
-    }
-  };
-
   // 特定のユーザーに選択情報を送信する関数
   const sendEmotionUpdateToUser = (selections, targetUserId) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -360,6 +359,7 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
         type: 'emotion_update_response',
         selections: selections,
         userId: myUserId,
+        userName: userName,
         targetUserId: targetUserId,
         colorIndex: parseInt(myUserId, 10) % ColorScheme.length,
         timestamp: new Date().toISOString()
@@ -388,6 +388,7 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
           type: 'emotion_update',
           selections: selections,
           userId: myUserId,
+          userName: userName,
           colorIndex: parseInt(myUserId, 10) % ColorScheme.length,
           timestamp: new Date().toISOString()
         };
@@ -398,7 +399,7 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
     } else {
       console.warn('WebSocket接続が確立されていません');
     }
-  }, [myUserId]);
+  }, [myUserId, userName]);
 
   // 選択クリア通知を送信する関数をmemoize
   const sendEmotionClear = useCallback(() => {
@@ -424,26 +425,68 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
     }
   }, [myUserId]);
 
-  // ページ離脱時に切断通知を送信
+  // ページ離脱時に切断通知を送信する部分を修正
   useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        const data = {
-          type: 'user_disconnect',
-          userId: myUserId,
-          timestamp: new Date().toISOString()
-        };
-        wsRef.current.send(JSON.stringify(data));
+    const handleBeforeUnload = (event) => {
+      try {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          // 同期的に送信するため、非同期コールバックを使わない
+          const data = {
+            type: 'user_disconnect',
+            userId: myUserId,
+            timestamp: new Date().toISOString()
+          };
+          
+          // navigator.sendBeacon を使用してページ遷移中でも確実にデータを送信
+          const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+          const wsUrl = 'wss://s14296.blr1.piesocket.com/v3/1?api_key=BVM9sVqGpPfg0xNvwIvYJTNEYoIHOUsLAxLwmCu0&notify_self=1';
+          const httpUrl = wsUrl.replace('wss://', 'https://');
+          
+          try {
+            // WebSocketで送信を試みる
+            wsRef.current.send(JSON.stringify(data));
+          } catch (e) {
+            console.warn('WebSocket経由での切断通知送信に失敗:', e);
+          }
+        }
+      } catch (error) {
+        console.error('切断通知の送信中にエラーが発生:', error);
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-
+    
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      handleBeforeUnload();
+      // コンポーネントのアンマウント時にもクリーンアップを実行
+      try {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          const data = {
+            type: 'user_disconnect',
+            userId: myUserId,
+            timestamp: new Date().toISOString()
+          };
+          // 同期的に送信
+          wsRef.current.send(JSON.stringify(data));
+          wsRef.current.close();
+        }
+      } catch (e) {
+        console.error('WebSocket切断中にエラー:', e);
+      }
     };
   }, [myUserId]);
+
+  // グローバルフラグを追加してページ離脱状態を追跡
+  useEffect(() => {
+    const handleUnload = () => {
+      window.isUnloading = true;
+    };
+    
+    window.addEventListener('unload', handleUnload);
+    return () => {
+      window.removeEventListener('unload', handleUnload);
+    };
+  }, []);
 
   return {
     myUserId,

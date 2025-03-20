@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle,DatabaseZap } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { ColorScheme } from './ui/common';
 import { useMoodMeterSocket } from './useMoodMeterSocket';
@@ -35,18 +35,6 @@ const MoodMeter = () => {
 
   const [selectedEmotions, setSelectedEmotions] = useState(getInitialEmotions());
 
-  // カスタムフックからWebSocket関連の状態と機能を取得
-  const {
-    myUserId,
-    connectedClients,
-    connectedUsers,
-    remoteUsers,
-    remoteSelections,
-    mySelections,  // ここで選択情報を受け取る
-    sendEmotionUpdate,
-    sendEmotionClear
-  } = useMoodMeterSocket(selectedEmotions, userName); // 初期選択を渡す
-
   // コンポーネントマウント時にlocalStorageからユーザー名を読み込む
   useEffect(() => {
     const storedName = localStorage.getItem('moodMeterUserName');
@@ -55,6 +43,18 @@ const MoodMeter = () => {
       setHasSetName(true);
     }
   }, []);
+
+  // カスタムフックからWebSocket関連の状態と機能を取得
+  const {
+    myUserId,
+    connectedClients,
+    connectedUsers,
+    remoteUsers,
+    remoteSelections,
+    mySelections,
+    sendEmotionUpdate,
+    sendEmotionClear
+  } = useMoodMeterSocket(selectedEmotions, userName); // 初期選択を渡す
 
   // useMoodMeterSocketから返された選択情報と同期
   useEffect(() => {
@@ -113,21 +113,33 @@ const MoodMeter = () => {
   return (
     <div>
       {!hasSetName && (
-        <div id="user-name-box" className="w-full max-w-4xl mx-auto p-4">
-          <h3>あなたの名前</h3>
-          <input 
-            type="text" 
-            value={userName} 
-            onChange={handleNameChange}
-            className="p-2 border border-gray-300 rounded mr-2" 
-          />
-          <button 
-            onClick={handleSaveName} 
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-          >
-            保存
-          </button>
-        </div>
+        <>
+          <div id="user-name-box" className="w-full max-w-4xl mx-auto p-4">
+            <h3>あなたの名前</h3>
+            <input 
+              type="text" 
+              value={userName} 
+              onChange={handleNameChange}
+              className="p-2 border border-gray-300 rounded mr-2" 
+            />
+            <button 
+              onClick={handleSaveName} 
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+            >
+              保存
+            </button>
+          </div>
+          <div className="w-full max-w-4xl mx-auto p-4">
+            <div className="flex items-center bg-yellow-100 text-gray-600 p-4 rounded">
+              <AlertCircle size={24} className="mr-2" />
+              <div>名前を入力してください。名前は他のユーザーに表示されます。</div>
+            </div>
+            <div className="flex items-center bg-red-100 text-red-600 p-4 rounded">
+              <DatabaseZap size={24} className="mr-2" />
+              <div>後で変更するときは、localStorageを消してください</div>
+            </div>
+          </div>
+        </>
       )}   
       {hasSetName && ( 
         <div id="mood-meter-box" className="w-full max-w-4xl mx-auto p-4">
@@ -219,13 +231,14 @@ const MoodMeter = () => {
                   .map((sel, idx) => {
                     const colorIdx = (sel.colorIndex !== undefined ? sel.colorIndex : idx) % ColorScheme.length;
                     const userColor = ColorScheme[colorIdx] || {
-                      name: "不明",
                       textColor: "text-gray-600",
                       color: "bg-gray-200"
                     };
+                    // connectedUsersから該当ユーザーの情報を取得
+                    const userData = connectedUsers[sel.userId] || {};
                     return (
                       <li key={idx} className={`${userColor.textColor || 'text-gray-600'}`}>
-                        <span className="font-semibold">{userColor.name || '不明'}:</span> {sel.emotion}
+                        <span className="font-semibold">{userData.name || '不明'}:</span> {sel.emotion}
                         (エネルギー: {10 - sel.row}/10, 快適度: {sel.col + 1}/10)
                       </li>
                     );
