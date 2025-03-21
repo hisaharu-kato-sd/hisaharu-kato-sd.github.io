@@ -20,9 +20,16 @@ export default defineConfig({
   base: './',
   server: {
     port: 3000,
+    // ホットリロードの設定
+    hmr: {
+      overlay: false // エラーオーバーレイを無効化
+    }
   },
   build: {
     outDir: 'dist',
-    rollupOptions: {}
+    rollupOptions: {},
+    sourcemap: true,
+    // ソースマップの生成方法を指定
+    cssSourceMap: true,
   }
 });

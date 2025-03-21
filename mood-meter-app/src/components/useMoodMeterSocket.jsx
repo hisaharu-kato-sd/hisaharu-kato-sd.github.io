@@ -1,10 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ColorScheme } from './ui/common';
 
+// WebSocket URL を定数として宣言して共通化
+const WS_URL = 'wss://s14296.blr1.piesocket.com/v3/1?api_key=BVM9sVqGpPfg0xNvwIvYJTNEYoIHOUsLAxLwmCu0&notify_self=1';
+
 export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト') => {
+  // WebSocket接続状態を追跡する状態変数を追加
+  const [connectionState, setConnectionState] = useState('connecting'); // 'connecting', 'connected', 'error'
   const [connectedClients, setConnectedClients] = useState(0);
   const [remoteSelections, setRemoteSelections] = useState([]);
-  const [connectedUsers, setConnectedUsers] = useState({});
   const [myUserId, setMyUserId] = useState('');
   const [remoteUsers, setRemoteUsers] = useState({});
   const wsRef = useRef(null);
@@ -37,6 +41,9 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
 
   // WebSocket接続処理とユーザー初期化
   useEffect(() => {
+    console.log('WebSocket接続を開始します...');
+    setConnectionState('connecting'); // 接続開始時に状態を'connecting'に設定
+
     // セッションストレージからユーザーIDを取得するか、新しく生成する
     const getOrCreateUserId = () => {
       const storedUserId = sessionStorage.getItem('moodMeterUserId');
@@ -66,13 +73,22 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
     const { userId, colorIndex } = getOrCreateUserId();
     setMyUserId(userId);
 
-    // WebSocket接続の初期化
-    const wsUrl = 'wss://s14296.blr1.piesocket.com/v3/1?api_key=BVM9sVqGpPfg0xNvwIvYJTNEYoIHOUsLAxLwmCu0&notify_self=1';
-    wsRef.current = new WebSocket(wsUrl);
+    // WebSocket接続の初期化 - 共通の定数を使用
+    wsRef.current = new WebSocket(WS_URL);
+
+    // 接続タイムアウトの設定
+    const connectionTimeout = setTimeout(() => {
+      if (connectionState === 'connecting') {
+        console.log('WebSocket接続がタイムアウトしました');
+        setConnectionState('error');
+      }
+    }, 10000); // 10秒でタイムアウト
 
     // WebSocket接続時の処理
     wsRef.current.onopen = () => {
       console.log('WebSocket接続が確立されました');
+      setConnectionState('connected'); // 接続成功時に状態を'connected'に更新
+      clearTimeout(connectionTimeout); // タイムアウトのクリア
 
       // ユーザー情報を送信
       const userInfo = {
@@ -139,20 +155,24 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
 
     wsRef.current.onerror = (error) => {
       console.error('WebSocket接続エラー:', error);
+      setConnectionState('error'); // エラー発生時に状態を'error'に設定
+      clearTimeout(connectionTimeout); // タイムアウトのクリア
     };
 
     wsRef.current.onclose = (event) => {
       console.log('WebSocket接続が閉じられました', event.code, event.reason);
-      
-      // 異常切断の場合は再接続を試みる（コード1000は正常終了）
+
+      // 正常終了以外の場合は、エラー状態に設定
       if (event.code !== 1000 && !window.isUnloading) {
-        console.log('WebSocket接続の再確立を試みます');
-        // 再接続の実装はここに追加可能
+        setConnectionState('error');
       }
+
+      clearTimeout(connectionTimeout); // タイムアウトのクリア
     };
 
     // クリーンアップ
     return () => {
+      clearTimeout(connectionTimeout); // タイムアウトのクリア
       try {
         if (wsRef.current) {
           if (wsRef.current.readyState === WebSocket.OPEN) {
@@ -172,6 +192,81 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
       }
     };
   }, []);
+
+  // WebSocket接続処理の改善
+  useEffect(() => {
+    // WebSocket接続が既に確立されている場合はスキップ
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      console.log('WebSocket接続は既に確立されています');
+      return;
+    }
+
+    // 接続試行回数を追跡する変数
+    let reconnectCount = 0;
+    const maxReconnectAttempts = 5;
+
+    // WebSocket接続を確立する関数
+    const setupWebSocket = () => {
+      try {
+        // 共通の定数を使用
+        wsRef.current = new WebSocket(WS_URL);
+
+        wsRef.current.onopen = () => {
+          console.log('WebSocket接続が確立されました');
+          reconnectCount = 0; // 接続成功したらカウントをリセット
+
+          // ...既存のonopen処理...
+        };
+
+        // メッセージ受信時の処理
+        wsRef.current.onmessage = handleWebSocketMessage;
+
+        wsRef.current.onerror = (error) => {
+          console.error('WebSocket接続エラー:', error);
+        };
+
+        wsRef.current.onclose = (event) => {
+          console.log('WebSocket接続が閉じられました', event.code, event.reason);
+
+          // 異常切断の場合は再接続を試みる（コード1000は正常終了）
+          if (event.code !== 1000 && !window.isUnloading && reconnectCount < maxReconnectAttempts) {
+            console.log(`WebSocket接続の再確立を試みます (試行: ${reconnectCount + 1}/${maxReconnectAttempts})`);
+            reconnectCount++;
+
+            // 指数バックオフで再接続（徐々に間隔を広げる）
+            const delay = Math.min(1000 * Math.pow(1.5, reconnectCount), 10000);
+            setTimeout(setupWebSocket, delay);
+          }
+        };
+      } catch (error) {
+        console.error('WebSocket初期化エラー:', error);
+      }
+    };
+
+    // 初期接続を確立
+    setupWebSocket();
+
+    // クリーンアップ
+    return () => {
+      try {
+        if (wsRef.current) {
+          if (wsRef.current.readyState === WebSocket.OPEN) {
+            // 切断前に切断メッセージを送信
+            const disconnectData = {
+              type: 'user_disconnect',
+              userId: myUserId,
+              timestamp: new Date().toISOString()
+            };
+            wsRef.current.send(JSON.stringify(disconnectData));
+            wsRef.current.close();
+          }
+          wsRef.current = null; // 参照をクリア
+        }
+      } catch (error) {
+        console.error('WebSocketクリーンアップエラー:', error);
+      }
+    };
+  }, [myUserId]); // myUserIdが変更されたときに再接続
 
   // 初期選択データがあれば適用する処理を追加
   useEffect(() => {
@@ -211,12 +306,18 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
     }
   };
 
-  // WebSocketメッセージハンドラ
+  // WebSocketメッセージハンドラの改善
   const handleWebSocketMessage = (event) => {
     console.log('WebSocketからメッセージ受信:', event.data);
 
     try {
       const data = JSON.parse(event.data);
+
+      // データ検証を追加
+      if (!data || typeof data !== 'object' || !data.type) {
+        console.warn('無効なWebSocketメッセージ形式:', data);
+        return;
+      }
 
       switch (data.type) {
         case 'client_count':
@@ -225,27 +326,53 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
           break;
 
         case 'user_connect':
-          setConnectedUsers(prevConnectedUsers => ({
-            ...prevConnectedUsers,
-            [data.userId]: {
-              name: data.userId === myUserId ? userName : (data.userName || `ユーザー名取得失敗:${data.userId.substring(0, 4)}`),
-              colorIndex: data.colorIndex
-            }
-          }));
+          if (!data.userId) {
+            console.warn('ユーザー接続メッセージにユーザーIDがありません:', data);
+            return;
+          }
+
+          setRemoteUsers(prevRemoteUsers => {
+            // 既存のユーザーデータを保持
+            const existingUserData = prevRemoteUsers[data.userId] || {};
+
+            return {
+              ...prevRemoteUsers,
+              [data.userId]: {
+                // 既存のデータを保持しつつ新しいデータで上書き
+                ...existingUserData,
+                name: data.userId === myUserId ? userName : (data.userName || `ユーザー${data.userId.substring(0, 4)}`),
+                colorIndex: data.colorIndex !== undefined ? data.colorIndex : existingUserData.colorIndex || 0,
+                selections: existingUserData.selections || [],
+                timestamp: data.timestamp || new Date().toISOString()
+              }
+            };
+          });
           break;
 
         case 'user_disconnect':
-          setConnectedUsers(prev => {
-            const newUsers = {...prev};
-            delete newUsers[data.userId];
-            return newUsers;
+          if (!data.userId) {
+            console.warn('ユーザー切断メッセージにユーザーIDがありません:', data);
+            return;
+          }
+
+          console.log(`ユーザーが切断しました: ${data.userId}`);
+
+          // 切断したユーザーの選択情報を削除
+          setRemoteUsers(prevRemoteUsers => {
+            const updatedRemoteUsers = { ...prevRemoteUsers };
+
+            // ユーザーのエントリを削除
+            if (updatedRemoteUsers[data.userId]) {
+              delete updatedRemoteUsers[data.userId];
+            }
+
+            return updatedRemoteUsers;
           });
 
-          setRemoteUsers(prev => {
-            const newRemoteUsers = {...prev};
-            delete newRemoteUsers[data.userId];
-            return newRemoteUsers;
-          });
+          // リモート選択からも削除
+          setRemoteSelections(prevSelections =>
+            prevSelections.filter(sel => sel.userId !== data.userId)
+          );
           break;
 
         case 'emotion_update':
@@ -348,7 +475,7 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
           break;
       }
     } catch (err) {
-      console.error('JSONパースエラー:', err);
+      console.error('JSONパースエラー:', err, 'データ:', event.data);
     }
   };
 
@@ -436,12 +563,12 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
             userId: myUserId,
             timestamp: new Date().toISOString()
           };
-          
+
           // navigator.sendBeacon を使用してページ遷移中でも確実にデータを送信
           const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-          const wsUrl = 'wss://s14296.blr1.piesocket.com/v3/1?api_key=BVM9sVqGpPfg0xNvwIvYJTNEYoIHOUsLAxLwmCu0&notify_self=1';
-          const httpUrl = wsUrl.replace('wss://', 'https://');
-          
+          // WS_URLからHTTP URLを生成（必要な場合）
+          const httpUrl = WS_URL.replace('wss://', 'https://');
+
           try {
             // WebSocketで送信を試みる
             wsRef.current.send(JSON.stringify(data));
@@ -455,7 +582,7 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-    
+
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       // コンポーネントのアンマウント時にもクリーンアップを実行
@@ -481,7 +608,7 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
     const handleUnload = () => {
       window.isUnloading = true;
     };
-    
+
     window.addEventListener('unload', handleUnload);
     return () => {
       window.removeEventListener('unload', handleUnload);
@@ -491,10 +618,10 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
   return {
     myUserId,
     connectedClients,
-    connectedUsers,
     remoteUsers,
     remoteSelections,
     mySelections,
+    connectionState, // 接続状態を返す
     sendEmotionUpdate,
     sendEmotionClear
   };

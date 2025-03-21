@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle,DatabaseZap } from 'lucide-react';
+import { AlertCircle, DatabaseZap, Loader2 } from 'lucide-react'; // Loader2アイコンを追加
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { ColorScheme } from './ui/common';
 import { useMoodMeterSocket } from './useMoodMeterSocket';
@@ -7,6 +7,7 @@ import { useWindowManager } from './WindowManager';
 import EmotionGrid from './EmotionGrid';
 import UserList from './UserList';
 import EmotionStatistics from './EmotionStatistics';
+import { ConnectionLoading, ConnectionError } from './ui/Loading';
 
 const MoodMeter = () => {
   // WindowManagerからの機能を取得
@@ -48,13 +49,13 @@ const MoodMeter = () => {
   const {
     myUserId,
     connectedClients,
-    connectedUsers,
     remoteUsers,
     remoteSelections,
     mySelections,
+    connectionState, // 接続状態を取得
     sendEmotionUpdate,
     sendEmotionClear
-  } = useMoodMeterSocket(selectedEmotions, userName); // 初期選択を渡す
+  } = useMoodMeterSocket(selectedEmotions, userName);
 
   // useMoodMeterSocketから返された選択情報と同期
   useEffect(() => {
@@ -93,9 +94,9 @@ const MoodMeter = () => {
   // デバッグ情報の表示
   useEffect(() => {
     console.log('MoodMeter: 現在の選択状態', selectedEmotions);
-    console.log('接続ユーザー:', connectedUsers);
     console.log('リモートユーザー:', remoteUsers);
-  }, [selectedEmotions, connectedUsers, remoteUsers]);
+    console.log('接続状態:', connectionState);
+  }, [selectedEmotions, remoteUsers, connectionState]);
 
   // ユーザー名を保存する関数
   const handleSaveName = () => {
@@ -110,20 +111,30 @@ const MoodMeter = () => {
     setUserName(e.target.value);
   };
 
+  // 接続状態に基づいて表示内容を切り替え
+  if (connectionState === 'connecting') {
+    return <ConnectionLoading />;
+  }
+
+  if (connectionState === 'error') {
+    return <ConnectionError onRetry={() => window.location.reload()} />;
+  }
+
+  // 以下は通常の表示部分（connectionState === 'connected' の場合）
   return (
     <div>
       {!hasSetName && (
         <>
           <div id="user-name-box" className="w-full max-w-4xl mx-auto p-4">
             <h3>あなたの名前</h3>
-            <input 
-              type="text" 
-              value={userName} 
+            <input
+              type="text"
+              value={userName}
               onChange={handleNameChange}
-              className="p-2 border border-gray-300 rounded mr-2" 
+              className="p-2 border border-gray-300 rounded mr-2"
             />
-            <button 
-              onClick={handleSaveName} 
+            <button
+              onClick={handleSaveName}
               className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
             >
               保存
@@ -140,8 +151,8 @@ const MoodMeter = () => {
             </div>
           </div>
         </>
-      )}   
-      {hasSetName && ( 
+      )}
+      {hasSetName && (
         <div id="mood-meter-box" className="w-full max-w-4xl mx-auto p-4">
           {(() => {
             const myColorIdx = parseInt(myUserId || '0', 10) % ColorScheme.length;
@@ -168,8 +179,8 @@ const MoodMeter = () => {
             );
           })()}
 
-          {/* 接続ユーザーリスト */}
-          <UserList myUserId={myUserId} connectedUsers={connectedUsers} userName={userName} />
+          {/* 接続ユーザーリスト - remoteUsersを使用 */}
+          <UserList myUserId={myUserId} connectedUsers={remoteUsers} userName={userName} />
 
           {/* 統計情報 */}
           <EmotionStatistics
@@ -234,15 +245,15 @@ const MoodMeter = () => {
                       textColor: "text-gray-600",
                       color: "bg-gray-200"
                     };
-                    // connectedUsersから該当ユーザーの情報を取得
-                    const userData = connectedUsers[sel.userId] || {};
+                    // remoteUsersから該当ユーザーの情報を取得
+                    const userData = remoteUsers[sel.userId] || {};
                     return (
                       <li key={idx} className={`${userColor.textColor || 'text-gray-600'}`}>
                         <span className="font-semibold">{userData.name || '不明'}:</span> {sel.emotion}
                         (エネルギー: {10 - sel.row}/10, 快適度: {sel.col + 1}/10)
                       </li>
                     );
-                })}
+                  })}
               </ul>
             </div>
           )}
