@@ -552,57 +552,6 @@ export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト
     }
   }, [myUserId]);
 
-  // ページ離脱時に切断通知を送信する部分を修正
-  useEffect(() => {
-    const handleBeforeUnload = (event) => {
-      try {
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          // 同期的に送信するため、非同期コールバックを使わない
-          const data = {
-            type: 'user_disconnect',
-            userId: myUserId,
-            timestamp: new Date().toISOString()
-          };
-
-          // navigator.sendBeacon を使用してページ遷移中でも確実にデータを送信
-          const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-          // WS_URLからHTTP URLを生成（必要な場合）
-          const httpUrl = WS_URL.replace('wss://', 'https://');
-
-          try {
-            // WebSocketで送信を試みる
-            wsRef.current.send(JSON.stringify(data));
-          } catch (e) {
-            console.warn('WebSocket経由での切断通知送信に失敗:', e);
-          }
-        }
-      } catch (error) {
-        console.error('切断通知の送信中にエラーが発生:', error);
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      // コンポーネントのアンマウント時にもクリーンアップを実行
-      try {
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          const data = {
-            type: 'user_disconnect',
-            userId: myUserId,
-            timestamp: new Date().toISOString()
-          };
-          // 同期的に送信
-          wsRef.current.send(JSON.stringify(data));
-          wsRef.current.close();
-        }
-      } catch (e) {
-        console.error('WebSocket切断中にエラー:', e);
-      }
-    };
-  }, [myUserId]);
-
   // グローバルフラグを追加してページ離脱状態を追跡
   useEffect(() => {
     const handleUnload = () => {
