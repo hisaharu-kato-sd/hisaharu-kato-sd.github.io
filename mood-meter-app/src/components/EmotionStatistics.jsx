@@ -77,8 +77,7 @@ const EmotionStatistics = ({ selectedEmotions, remoteUsers, myUserId }) => {
       <div>
         <strong>チーム統計</strong> (全{stats.totalCount}選択中)
       </div>
-      <div>平均エネルギー: {stats.avgEnergy} (標準偏差: {stats.stdDevEnergy})</div>
-      <div>平均快適度: {stats.avgPleasantness} (標準偏差: {stats.stdDevPleasantness})</div>
+      <div className="mt-4 font-bold">平均エネルギー: {stats.avgEnergy} (標準偏差: {stats.stdDevEnergy}) / 平均快適度: {stats.avgPleasantness} (標準偏差: {stats.stdDevPleasantness})</div>
     </div>
   );
 };

@@ -54,7 +54,7 @@ const EmotionGrid = ({ selectedEmotions, remoteSelections, myUserId, onEmotionSe
             color: 'bg-gray-200',
             borderColor: 'border-gray-400'
           };
-          cellStyle = `w-full h-full ${myColor.color} cursor-pointer flex items-center justify-center text-xs font-semibold relative text-gray-800 border-2 ${myColor.borderColor}`;
+          cellStyle = `w-full h-full ${myColor.color} cursor-pointer flex items-center justify-center text-xs font-semibold relative text-gray-800 border-2 text-center ${myColor.borderColor}`;
         }
 
         allCells.push(
