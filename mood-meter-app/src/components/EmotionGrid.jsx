@@ -64,24 +64,26 @@ const EmotionGrid = ({ selectedEmotions, remoteSelections, myUserId, onEmotionSe
             onClick={() => handleCellClick(rowIdx, colIdx)}
             title={emotion}
           >
-            {emotion}
+            <span dangerouslySetInnerHTML={{
+              __html: emotion.replace(/\s/g, "<br>")
+            }} />
 
             {/* リモート選択のインジケーター（必要に応じて） */}
             {cellRemoteSelections.length > 0 && (
               <div className="absolute top-0 right-0 flex flex-wrap justify-end max-w-full p-0.5">
-                {cellRemoteSelections.map((sel, idx) => {
-                  const colorIdx = (sel.colorIndex !== undefined ? sel.colorIndex : idx) % ColorScheme.length;
-                  const userColor = ColorScheme[colorIdx] || {
-                    color: 'bg-gray-400'
-                  };
-                  return (
-                    <div
-                      key={`remote-${idx}`}
-                      className={`${userColor.color || 'bg-gray-400'} w-2.5 h-2.5 rounded-full ml-0.5`}
-                      title={ColorScheme[colorIdx]?.name || '不明なユーザー'}
-                    />
-                  );
-                })}
+          {cellRemoteSelections.map((sel, idx) => {
+            const colorIdx = (sel.colorIndex !== undefined ? sel.colorIndex : idx) % ColorScheme.length;
+            const userColor = ColorScheme[colorIdx] || {
+              color: 'bg-gray-400'
+            };
+            return (
+              <div
+                key={`remote-${idx}`}
+                className={`${userColor.color || 'bg-gray-400'} w-2.5 h-2.5 rounded-full ml-0.5`}
+                title={ColorScheme[colorIdx]?.name || '不明なユーザー'}
+              />
+            );
+          })}
               </div>
             )}
           </div>

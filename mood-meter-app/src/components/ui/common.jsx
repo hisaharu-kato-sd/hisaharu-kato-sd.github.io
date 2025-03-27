@@ -2,16 +2,16 @@ import React from 'react';
 
 
 const Emotions = [
-    ['激怒', 'パニック', '欲求不満', 'ショック', '茫然', '活気', 'スリル', '歓喜', '陶酔', '有頂天'],
-    ['激昂', '恐怖', 'イライラ', '心配', '苛立ち', '前向き', '親密', '喜び', '熱中', '歓喜'],
-    ['怒り', '恐れ', '怒り', '緊張', '懸念', '嬉しい', 'インスパイア', '幸せ', '意欲的', '興奮'],
-    ['憤怒', '不安', '動揺', '不確か', '疎外感', '楽しい', '集中', '陽気', '誇り', '驚き'],
-    ['嫌悪', '恐れ', '悩み', '落ち着かない', '不安', '満足', '喜ば', '希望的', '楽観的', '活発'],
-    ['不安', '恥ずかしい', '罪悪感', '萎縮', '自己満足', '気楽', '安全', 'リラックス', '尊敬', '幸運'],
-    ['不機嫌', '憂鬱', '落胆', '落胆', '退屈', 'くつろぎ', '安心', '満足', '感謝', '充実'],
-    ['疲労困憊', '疲れ', '悲しい', '惨め', '悲観的', '思慮深い', '冷静', '平穏', '感謝', '安らか'],
-    ['疎外感', '憂鬱', '失望', '疲れ', '混乱', '穏やか', '平和', 'バランス', 'くつろぎ', '落ち着き'],
-    ['絶望', '慰めようがない', '苦悩', '絶望的', '孤独', '無気力', '眠い', '休息', '快適', '静寂']
+  ['Engaged 忙しい','Panicked うろたえる','Stressed ストレスが強い','Jittery 神経質','Shocked 衝撃的','Surprised 驚いている','Upbeat 陽気','Festive お祭り気分','Exhilarated ウキウキする','Ecstatic 有頂天'],
+  ['Livid 激怒','Furious 青ざめる','Frustrated 落胆した','Tense 張り詰めた','Stunned あ然とする','Hyper 興奮状態','Cheerful 愉快','Motivated やる気がある','Inspired 触発された','Elated 大喜び'],
+  ['Fuming 怒りで爆発する', 'Frightened おびえる', 'Angry 怒り', 'Nervous 神経が高ぶる', 'Restless 落ち着かない', 'Energized 精力的', 'Lively 生き生きとした', 'Excited 興奮した', 'Optimistic 楽観的', 'Enthusiastic 熱狂的'],
+  ['Anxious 気が気でない・緊張', 'Apprehensive 危惧する', 'Worried 心配する', 'Imitated うわついた', 'Annoyed いらいらする', 'Pleased うれしい', 'Focused 集中', 'Happy 幸せ', 'Proud 誇りに思う', 'Thrilled (興奮で)ぞくぞくする'],
+  ['Repulsed 嫌悪感を抱く', 'Troubled 当惑する・困る', 'Concerned 憂慮する', 'Uneasy そわそわする', 'Peeved もどかしい', 'Pleasant 快適', 'Joyful 楽しい', 'Hopeful 希望に満ちた', 'Playful 遊び心のある', 'Blissful 至福'],
+  ['Disgusted うんざりする', 'Glum ふさぎこむ', 'Disappointed 期待を裏切られた', 'Down 落ち込む', 'Apathetic 無感情', 'At Ease 気楽', 'Easygoing のんびり', 'Content 満足している', 'Loving 愛情のある', 'Fulfilled 充実している'],
+  ['Pessimistic 悲観的', 'Morose 気難しい', 'Discouraged 気を落とす', 'Sad 悲しい', 'Bored つまらない', 'Calm 穏やか', 'Secure 安心している', 'Satisfied 満ち足りている', 'Grateful ありがたい', 'Touched 感動する'],
+  ['Alienated 疎外される', 'Miserable 悲惨', 'Lonely 孤独', 'Disheartened がっかりする', 'Tired 疲れている', 'Relaxed リラックスしている', 'Chill ゆっくりする', 'Restful 心が休まる', 'Blessed 恵まれている', 'Balanced バランスがとれている'],
+  ['Despondent しょげ返った', 'Depressed 意気消沈', 'Sullen 不機嫌', 'Exhausted 疲労困憊', 'Fatigued 疲労・倦怠感', 'Mellow 落ち着いている','Thoghtful 思いにふける', 'Peaceful 平然とした', 'Comfortable 心地良い', 'Carefree のんき'],
+  ['Despairing 絶望', 'Hopeless 望みがない', 'Desolate みじめ', 'Spent 失望する', 'Drained 疲れ切っている', 'Sleepy 眠たい', 'Complacent 無関心', 'Tranquil 冷静', 'Cozy くつろいでいる', 'Serene 平穏'],
   ];
 
 const ColorScheme = [
