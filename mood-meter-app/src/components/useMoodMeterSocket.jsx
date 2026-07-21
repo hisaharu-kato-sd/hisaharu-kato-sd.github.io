@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { ColorScheme } from './ui/common';
 
 // WebSocket URL を定数として宣言して共通化
-const WS_URL = 'wss://s14296.blr1.piesocket.com/v3/1?api_key=BVM9sVqGpPfg0xNvwIvYJTNEYoIHOUsLAxLwmCu0&notify_self=1';
+const WS_URL = 'wss://moodmeterwebsockt.vercel.app/api/ws';
 
 export const useMoodMeterSocket = (initialSelections = [], userName = 'ゲスト') => {
   // WebSocket接続状態を追跡する状態変数を追加
