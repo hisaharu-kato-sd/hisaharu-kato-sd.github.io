@@ -1,5 +1,5 @@
 /node_modules/*
-/mood-meter-app/node_modules/*
+/mood-meter-app/tmp/node_modules/*
 
 # misc
 .DS_Store
