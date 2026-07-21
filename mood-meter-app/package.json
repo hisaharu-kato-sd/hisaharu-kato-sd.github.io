@@ -8,20 +8,20 @@
     "serve": "vite preview"
   },
   "dependencies": {
-    "@radix-ui/react-visually-hidden": "^1.1.2",
-    "lucide-react": "^0.482.0",
-    "react": "^19.0.0",
-    "react-aria-components": "^1.7.1",
-    "react-dom": "^19.0.0"
+    "@radix-ui/react-visually-hidden": "^1.2.8",
+    "lucide-react": "^1.25.0",
+    "react": "^19.2.7",
+    "react-aria-components": "^1.19.0",
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
-    "@babel/core": "^7.26.10",
-    "@babel/preset-env": "^7.26.9",
-    "@babel/preset-react": "^7.26.3",
-    "@vitejs/plugin-react": "^4.3.4",
-    "autoprefixer": "^10.4.21",
-    "postcss": "^8.5.3",
-    "tailwindcss": "^3.4.17",
-    "vite": "^6.2.2"
+    "@babel/core": "^8.0.1",
+    "@babel/preset-env": "^8.0.2",
+    "@babel/preset-react": "^8.0.1",
+    "@vitejs/plugin-react": "^6.0.3",
+    "autoprefixer": "^10.5.4",
+    "postcss": "^8.5.20",
+    "tailwindcss": "^3.4.19",
+    "vite": "^8.1.5"
   }
 }
